@@ -3,7 +3,7 @@ const express=require("express"),helmet=require("helmet"),morgan=require("morgan
 const Database=require("better-sqlite3"),crypto=require("crypto"),path=require("path"),fs=require("fs");
 const PDFDocument=require("pdfkit");
 const app=express(),PORT=process.env.PORT||3000,BASE_URL=process.env.BASE_URL||`http://localhost:${PORT}`;
-app.use(helmet({contentSecurityPolicy:false}));app.use(morgan("tiny"));app.use(express.json({limit:"1mb"}));app.use(express.urlencoded({extended:true}));app.use(express.static(path.join(__dirname,"public")));
+app.use(helmet({contentSecurityPolicy:false}));app.use(morgan("tiny"));app.use(express.json({limit:"1mb"}));app.use(express.urlencoded({extended:true}));app.use(express.static(__dirname));
 fs.mkdirSync("data",{recursive:true});const db=new Database("data/quickwork.db");db.pragma("journal_mode=WAL");
 db.exec(`CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,email TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,referral_code TEXT UNIQUE NOT NULL,credits INTEGER DEFAULT 0,created_at TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id INTEGER,expires_at INTEGER);
@@ -24,4 +24,4 @@ app.post("/api/paystack/webhook",(q,s)=>{let sig=q.headers["x-paystack-signature
 app.get("/api/orders/:id/pdf",auth,(q,s)=>{let o=db.prepare("SELECT * FROM orders WHERE id=? AND user_id=?").get(q.params.id,q.user.id);if(!o||o.status!=="paid")return s.status(404).send("Document unavailable");s.setHeader("Content-Type","application/pdf");s.setHeader("Content-Disposition",`attachment; filename="quickwork-${o.id}.pdf"`);let d=new PDFDocument({margin:50});d.pipe(s);d.fontSize(20).text("QuickWork AI").moveDown().fontSize(16).text(o.product.toUpperCase()).moveDown().fontSize(11).text(o.output_text||content(o),{lineGap:5});d.end()});
 app.get("/api/orders/:id/docx",auth,(q,s)=>{let o=db.prepare("SELECT * FROM orders WHERE id=? AND user_id=?").get(q.params.id,q.user.id);if(!o||o.status!=="paid")return s.status(404).send("Document unavailable");s.setHeader("Content-Type","text/plain");s.setHeader("Content-Disposition",`attachment; filename="quickwork-${o.id}.txt"`);s.send(o.output_text||content(o))});
 app.get("/api/admin/stats",(q,s)=>{if(q.headers["x-admin-key"]!==process.env.ADMIN_KEY)return s.status(401).json({error:"Unauthorized"});s.json({users:db.prepare("SELECT COUNT(*) c FROM users").get().c,orders:db.prepare("SELECT COUNT(*) c FROM orders").get().c,paid:db.prepare("SELECT COUNT(*) c FROM orders WHERE status='paid'").get().c,revenue:db.prepare("SELECT COALESCE(SUM(amount),0) n FROM orders WHERE status='paid'").get().n,recent:db.prepare("SELECT id,product,amount,status,created_at FROM orders ORDER BY id DESC LIMIT 50").all()})});
-app.get("*",(q,s)=>s.sendFile(path.join(__dirname,"public/index.html")));app.listen(PORT,()=>console.log("QuickWork AI running on "+PORT));
+app.get("*",(q,s)=>s.sendFile(path.join(__dirname,"index.html")));
