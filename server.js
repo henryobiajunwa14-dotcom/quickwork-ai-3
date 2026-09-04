@@ -25,3 +25,6 @@ app.get("/api/orders/:id/pdf",auth,(q,s)=>{let o=db.prepare("SELECT * FROM order
 app.get("/api/orders/:id/docx",auth,(q,s)=>{let o=db.prepare("SELECT * FROM orders WHERE id=? AND user_id=?").get(q.params.id,q.user.id);if(!o||o.status!=="paid")return s.status(404).send("Document unavailable");s.setHeader("Content-Type","text/plain");s.setHeader("Content-Disposition",`attachment; filename="quickwork-${o.id}.txt"`);s.send(o.output_text||content(o))});
 app.get("/api/admin/stats",(q,s)=>{if(q.headers["x-admin-key"]!==process.env.ADMIN_KEY)return s.status(401).json({error:"Unauthorized"});s.json({users:db.prepare("SELECT COUNT(*) c FROM users").get().c,orders:db.prepare("SELECT COUNT(*) c FROM orders").get().c,paid:db.prepare("SELECT COUNT(*) c FROM orders WHERE status='paid'").get().c,revenue:db.prepare("SELECT COALESCE(SUM(amount),0) n FROM orders WHERE status='paid'").get().n,recent:db.prepare("SELECT id,product,amount,status,created_at FROM orders ORDER BY id DESC LIMIT 50").all()})});
 app.get("*",(q,s)=>s.sendFile(path.join(__dirname,"index.html")));
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`QuickWork AI running on port ${PORT}`);
+});
